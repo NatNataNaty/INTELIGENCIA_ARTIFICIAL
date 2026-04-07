@@ -1,0 +1,76 @@
+Guía Detallada: Examen de Regresión - Bike Sharing
+
+Este documento explica el flujo de trabajo para predecir la demanda de bicicletas (`count`) utilizando técnicas de regresión, desde el preprocesamiento hasta la evaluación del modelo.
+
+1. Fase de Preparación y Análisis (EDA)
+
+Carga y Exploración Inicial
+El proceso comienza cargando las librerías esenciales (**Pandas, Numpy, Scikit-Learn**) y los datos. Se realiza una inspección de dimensiones (`shape`) y tipos de datos para entender a qué nos enfrentamos. 
+
+Ingeniería de Características (Feature Engineering)
+La columna `datetime` original no es útil para un modelo matemático por sí sola. Por ello, se extraen componentes temporales:
+* **Hora:** Factor crítico (la demanda varía entre horas pico y madrugada).
+* **Día, Mes y Año:** Capturan patrones semanales, estacionales y tendencias de crecimiento anual.
+
+Gestión de Datos Faltantes (Imputación con KNN)
+En lugar de simplemente borrar filas con nulos, se utiliza **KNNImputer**. 
+* **¿Cómo funciona?** Identifica los 5 registros más similares ("vecinos") y promedia sus valores para rellenar el hueco. Esto mantiene la integridad estadística del dataset.
+* **Variables Categóricas:** Se rellenan con la **moda** (el valor más frecuente), ya que no se puede promediar una categoría.
+
+
+2. Visualización de Datos
+Las gráficas permiten validar hipótesis antes de entrenar:
+Demanda por Hora:** Confirma si hay picos (ej. 8:00 AM y 5:00 PM).
+* **Boxplot por Temporada:** Ayuda a identificar valores atípicos (outliers) y ver cómo cambia la mediana de alquileres según el clima.
+* **Mapa de Calor (Correlación):** Identifica qué variables influyen más en el objetivo. Por ejemplo, una correlación alta entre `temp` y `count` indica que el clima es un predictor clave.
+
+---
+
+## 3. Preparación para el Modelo
+
+### Selección de Features
+Se eliminan columnas redundantes o "filtradas":
+* `datetime`: Ya extrajimos sus partes.
+* `casual` y `registered`: Se eliminan porque su suma es exactamente el `count` (el objetivo). Incluirlas sería "hacer trampa" (Data Leakage).
+
+### División 75/25 y Escalamiento
+1.  **Split:** Se reserva el 25% de los datos para la prueba final. Esto garantiza que evaluamos el modelo con datos que nunca vio.
+2.  **StandardScaler (Z-score):** Transforma las variables para que tengan media 0 y desviación estándar 1. 
+    * *Importancia:* Algoritmos como el Descenso por Gradiente convergen mucho más rápido si todas las características están en la misma escala.
+
+---
+
+## 4. Implementación del Modelo: Descenso por Gradiente
+
+Se implementa una **Regresión Lineal Múltiple** desde cero usando álgebra lineal:
+
+### Las Funciones Clave:
+* **Cálculo del Costo ($J$):** Mide qué tan lejos están las predicciones de la realidad usando el Error Cuadrático Medio.
+    $$J(\theta) = \frac{1}{2m} \sum_{i=1}^{m} (h_\theta(x^{(i)}) - y^{(i)})^2$$
+* **Descenso por Gradiente:** Es el proceso iterativo donde el modelo "aprende". Ajusta los parámetros ($\theta$) en la dirección opuesta al gradiente para minimizar el error.
+
+### Convergencia
+La **Curva de Convergencia** muestra cómo el costo disminuye en cada iteración. Si la curva se aplana, el modelo ha encontrado su punto óptimo.
+
+---
+
+## 5. Análisis de Resultados y Residuos
+
+Para comparar el modelo Lineal con el **Polinomial** (que añade términos al cuadrado para capturar curvas), se analizan tres gráficas:
+
+1.  **Real vs. Predicho:** En un mundo perfecto, todos los puntos estarían sobre la línea roja de 45°. La dispersión nos indica el error del modelo.
+2.  **Gráfico de Residuos:** Los puntos deben estar distribuidos al azar alrededor de la línea cero. Si hay patrones (como una forma de "U"), significa que el modelo está perdiendo información importante.
+3.  **Distribución de Residuos:** Buscamos una **campana de Gauss** centrada en cero. Esto valida que los errores son aleatorios y no sesgados.
+
+
+
+---
+
+## 6. Conclusión del Examen
+
+* **R² (Coeficiente de Determinación):** Explica qué porcentaje de la variabilidad de la demanda es capturada por el modelo (en este caso, un ~49%).
+* **RMSE (Root Mean Squared Error):** Indica que, en promedio, el modelo se equivoca por unas 129 bicicletas.
+* **Evitar Overfitting:** La clave del éxito aquí es que el **R² de entrenamiento (0.4949)** es casi igual al de **prueba (0.4926)**. 
+    * *Veredicto:* La diferencia es mínima (0.0024), lo que significa que el modelo **generaliza bien** y no se memorizó los datos.
+
+---
